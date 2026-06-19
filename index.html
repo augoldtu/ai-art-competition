@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Art Competition - โรงเรียนบ้านหนองตะขบ</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght=300;400;500;600&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Kanit', sans-serif; }[v-cloak] { display: none; }</style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between">
+
+    <div id="app" v-cloak class="p-4 md:p-8 max-w-7xl mx-auto w-full flex-1">
+        
+        <!-- HEADER WITH SCHOOL LOGO & NAME -->
+        <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-700 pb-6 mb-8 gap-4">
+            <div class="flex items-center gap-4">
+                <img src="ตราโรงเรียนหนองตะขบ.png" alt="ตราโรงเรียนหนองตะขบ.png" class="w-16 h-16 object-contain">
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-cyan-400 to-purple-500">
+                        โรงเรียนบ้านหนองตะขบ
+                    </h1>
+                    <p class="text-slate-400 text-xs md:text-sm mt-0.5">ระบบประกวดภาพถ่าย AI Art Competition ในหัวข้อ "นิราศภูเขาทอง"</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button @click="currentTab = 'student'" :class="tabClass('student')">ฝั่งนักเรียน</button>
+                <button @click="currentTab = 'judge'" :class="tabClass('judge')">ฝั่งกรรมการ / Admin</button>
+                <button v-if="currentUser" @click="currentTab = 'leaderboard'" :class="tabClass('leaderboard')">Leaderboard 🏆</button>
+                
+                <div v-if="currentUser" class="ml-4 pl-4 border-l border-slate-700 flex items-center gap-2">
+                    <span :class="['text-xs px-3 py-1.5 rounded-full border', userRole === 'admin' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-purple-500/20 text-purple-300 border-purple-500/30']">
+                        👑 {{ currentUser }} ({{ userRole.toUpperCase() }})
+                    </span>
+                    <button @click="logout" class="text-xs text-rose-400 underline cursor-pointer">ออก</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- LOADING STATE -->
+        <div v-if="isLoading" class="text-center py-12 text-cyan-400 animate-pulse">
+            <span>⏳ กำลังซิงค์ข้อมูลกับ Google Sheets...</span>
+        </div>
+
+        <main v-else>
+            <!-- ================= TAB: STUDENT ================= -->
+            <section v-if="currentTab === 'student'" class="max-w-xl mx-auto bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
+                <h2 class="text-xl font-semibold mb-6 text-cyan-400 flex items-center gap-2">🚀 ส่งผลงานประกวดภาพ AI</h2>
+                <form @submit.prevent="submitArtwork" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">ระดับชั้น</label>
+                        <select v-model="studentForm.level" required class="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-400">
+                            <option value="" disabled>เลือกระดับชั้น</option>
+                            <option value="ม.1">มัธยมศึกษาปีที่ 1</option>
+                            <option value="ม.2">มัธยมศึกษาปีที่ 2</option>
+                            <option value="ม.3">มัธยมศึกษาปีที่ 3</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">ชื่อ - นามสกุล</label>
+                        <input type="text" v-model="studentForm.name" placeholder="เด็กชาย / เด็กหญิง ..." required class="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-400">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">อัปโหลดรูปภาพผลงาน</label>
+                        <div class="border-2 border-dashed border-slate-600 rounded-xl p-4 text-center bg-slate-900/50 relative cursor-pointer hover:border-cyan-400 transition-colors">
+                            <input type="file" accept="image/*" @change="handleImageUpload" required class="absolute inset-0 opacity-0 cursor-pointer">
+                            <div v-if="!studentForm.image" class="py-4">🖼️ <p class="text-xs text-slate-400 mt-1">คลิกเพื่อเลือกภาพ</p></div>
+                            <img v-else :src="studentForm.image" class="max-h-60 mx-auto rounded-lg">
+                        </div>
+                    </div>
+                    <button type="submit" :disabled="isSubmitting" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 py-3 rounded-xl font-medium cursor-pointer disabled:opacity-50 hover:from-cyan-400 hover:to-blue-500 transition-all">
+                        {{ isSubmitting ? 'กำลังบันทึกลงคลาวด์...' : 'ส่งผลงานเข้าประกวด' }}
+                    </button>
+                </form>
+            </section>
+
+            <!-- ================= TAB: JUDGE & ADMIN ================= -->
+            <section v-if="currentTab === 'judge'">
+                <!-- LOGIN FORM -->
+                <div v-if="!currentUser" class="max-w-md mx-auto bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
+                    <h2 class="text-xl font-semibold mb-6 text-purple-400 text-center">🔒 เข้าสู่ระบบตรวจงาน / จัดการระบบ</h2>
+                    <form @submit.prevent="login" class="space-y-4">
+                        <select v-model="loginForm.username" class="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white">
+                            <option value="กรรมการคนที่ 1">กรรมการคนที่ 1</option>
+                            <option value="กรรมการคนที่ 2">กรรมการคนที่ 2</option>
+                            <option value="กรรมการคนที่ 3">กรรมการคนที่ 3</option>
+                            <option value="คุณครู (Admin)">คุณครู (Admin)</option>
+                        </select>
+                        <input type="password" v-model="loginForm.password" placeholder="กรอกรหัสผ่าน" required class="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white">
+                        <button type="submit" class="w-full bg-purple-600 py-3 rounded-xl font-medium cursor-pointer hover:bg-purple-500 transition-colors">
+                            เข้าสู่ระบบ
+                        </button>
+                    </form>
+                </div>
+
+                <!-- MAIN CONTROL AREA -->
+                <div v-else class="space-y-6">
+                    <div class="bg-slate-800/40 p-4 rounded-xl border border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div class="flex gap-2">
+                            <button v-for="lvl in ['ทั้งหมด','ม.1','ม.2','ม.3']" @click="judgeFilter = lvl" :class="['px-3 py-1.5 text-xs rounded-md cursor-pointer transition-colors', judgeFilter === lvl ? 'bg-purple-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600']">{{lvl}}</button>
+                        </div>
+                        <div class="text-xs text-slate-400">📊 ผลงานในระบบทั้งหมด: <span class="text-cyan-400 font-bold">{{ filteredArtworks.length }}</span> ภาพ</div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div v-for="art in filteredArtworks" :key="art.id" @click="selectArtwork(art)" :class="['p-3 bg-slate-800 rounded-xl border cursor-pointer flex flex-col justify-between hover:scale-[1.01] transition-all', selectedArtwork?.id === art.id ? 'border-purple-400 shadow-lg shadow-purple-500/10' : 'border-slate-700']">
+                                <img :src="art.image" class="aspect-video w-full object-cover rounded-lg mb-2 bg-slate-900">
+                                <div class="text-sm font-medium truncate text-slate-300 mb-1" v-if="userRole === 'admin'">👤 {{ art.name }}</div>
+                                <div class="flex justify-between items-center text-xs">
+                                    <span class="bg-slate-700 px-2 py-0.5 rounded text-slate-300">{{ art.level }}</span>
+                                    
+                                    <span v-if="userRole === 'admin'" class="text-amber-400">
+                                        ⭐ ได้รับคะแนนแล้ว {{ Object.keys(art.scores || {}).length }} ท่าน
+                                    </span>
+                                    <span v-else>
+                                        <span v-if="art.scores && art.scores[currentUser] !== undefined" class="text-emerald-400 font-medium">⭐ ตรวจแล้ว ({{ art.scores[currentUser] }} คะแนน)</span>
+                                        <span v-else class="text-amber-400 font-medium">⏳ รอตรวจ</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 h-fit sticky top-6">
+                            <!-- MODE: JUDGE PANEL -->
+                            <div v-if="userRole === 'judge'">
+                                <h3 class="text-md font-medium text-purple-400 mb-4 border-b border-slate-700 pb-2">📋 ลงคะแนน</h3>
+                                <div v-if="selectedArtwork" class="space-y-4">
+                                    <img :src="selectedArtwork.image" class="w-full max-h-40 object-contain rounded-lg bg-slate-900">
+                                    <div class="flex justify-between text-sm">
+                                        <label class="text-slate-400">คะแนน (0-100):</label>
+                                        <span class="font-bold text-amber-400">{{ currentScoreInput }} / 100</span>
+                                    </div>
+                                    <input type="range" min="0" max="100" v-model.number="currentScoreInput" class="w-full accent-purple-500 cursor-pointer">
+                                    <button @click="saveScore" :disabled="isSubmitting" class="w-full bg-emerald-600 py-2 rounded-lg font-medium cursor-pointer disabled:opacity-50 hover:bg-emerald-500 transition-colors">
+                                        {{ isSubmitting ? 'กำลังบันทึกคะแนน...' : 'บันทึกคะแนน' }}
+                                    </button>
+                                </div>
+                                <div v-else class="text-center py-8 text-slate-500 text-xs">👈 เลือกรูปภาพด้านซ้ายเพื่อกรอกคะแนน</div>
+                            </div>
+
+                            <!-- MODE: ADMIN PANEL -->
+                            <div v-if="userRole === 'admin'">
+                                <h3 class="text-md font-medium text-amber-400 mb-4 border-b border-slate-700 pb-2">🛠️ แผงผู้ดูแลระบบ (Admin)</h3>
+                                <div v-if="selectedArtwork" class="space-y-3 text-xs">
+                                    <img :src="selectedArtwork.image" class="w-full max-h-40 object-contain rounded-lg bg-slate-900 mb-2">
+                                    <p class="text-slate-300 font-medium text-sm">👤 นักเรียน: {{ selectedArtwork.name }} ({{ selectedArtwork.level }})</p>
+                                    <div class="bg-slate-900/60 p-3 rounded-lg mt-2 space-y-1.5">
+                                        <p class="font-bold text-slate-400 border-b border-slate-700 pb-1 mb-1">ผลคะแนนแยกรายบุคคล:</p>
+                                        <p v-for="(val, name) in selectedArtwork.scores" :key="name" class="text-slate-300 flex justify-between">
+                                            <span>🔹 {{ name }}:</span> <span class="text-emerald-400 font-bold">{{ val }} คะแนน</span>
+                                        </p>
+                                        <p v-if="Object.keys(selectedArtwork.scores || {}).length === 0" class="text-slate-500 italic">ยังไม่มีกรรมการท่านใดให้คะแนน</p>
+                                    </div>
+                                </div>
+                                <div v-else class="text-center py-8 text-slate-500 text-xs">👈 เลือกรูปภาพของนักเรียน เพื่อเรียกดูรายละเอียดคะแนนดิบของกรรมการทั้งหมด</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= TAB: LEADERBOARD ================= -->
+            <section v-if="currentTab === 'leaderboard' && currentUser" class="space-y-8">
+                <div class="bg-gradient-to-br from-purple-950/20 via-slate-800/50 to-cyan-950/20 p-6 rounded-2xl border border-slate-700 text-center">
+                    <h2 class="text-xl font-bold mb-6 text-amber-400">🏆 3 อันดับสูงสุดรวมทุกระดับชั้น (ม.1 - ม.3)</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto items-end">
+                        <div v-for="(art, idx) in overallTop3" :key="art.id" :class="['bg-slate-800 p-4 rounded-xl border text-center space-y-2', idx===0 ? 'border-amber-400 md:order-2 shadow-lg shadow-amber-400/5' : idx===1 ? 'border-slate-600 md:order-1' : 'border-slate-700 md:order-3']">
+                            <span class="text-2xl">{{ idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉' }}</span>
+                            <img :src="art.image" class="h-28 w-full object-cover rounded-md bg-slate-900">
+                            <h4 class="font-medium text-sm truncate text-slate-200">{{ art.name }} ({{ art.level }})</h4>
+                            <div class="text-xs text-cyan-400 font-bold">คะแนนเฉลี่ย: {{ art.avgScore.toFixed(2) }}</div>
+                        </div>
+                    </div>
+                    <div v-if="overallTop3.length === 0" class="text-center py-8 text-slate-500 text-sm">⏳ ยังไม่มีข้อมูลสรุปผลอันดับคะแนน</div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div v-for="lvl in ['ม.1', 'ม.2', 'ม.3']" :key="lvl" class="bg-slate-800/40 p-4 rounded-xl border border-slate-700">
+                        <h3 class="text-sm font-semibold mb-3 text-cyan-400 bg-cyan-500/10 px-2 py-1 rounded w-fit">🏅 ระดับชั้น {{ lvl }}</h3>
+                        <div class="space-y-2">
+                            <div v-for="(art, idx) in getTop3ByLevel(lvl)" :key="art.id" class="flex items-center gap-3 bg-slate-900/50 p-2 rounded-lg text-xs border border-slate-800">
+                                <span class="font-bold text-slate-400 w-4 text-center">{{ idx+1 }}</span>
+                                <img :src="art.image" class="w-10 h-10 object-cover rounded bg-slate-800">
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium truncate text-slate-200">{{ art.name }}</p>
+                                    <p class="text-slate-400">เฉลี่ย: <span class="text-amber-400 font-bold">{{ art.avgScore.toFixed(1) }}</span></p>
+                                </div>
+                            </div>
+                            <div v-if="getTop3ByLevel(lvl).length === 0" class="text-center py-4 text-slate-500 text-xs">ยังไม่มีข้อมูลคะแนน</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ================= FOOTER: CREDITS ================= -->
+    <footer class="w-full text-center py-6 border-t border-slate-800 mt-12 bg-slate-950/40">
+        <p class="text-xs text-slate-500 tracking-wide">
+            พัฒนาโดย <span class="text-slate-400 font-medium">ครูเนรมิต เหล็กคงสันเทียะ</span> 
+            <span class="mx-2 text-slate-700">|</span> 
+            <span class="bg-slate-800/80 px-2 py-0.5 rounded text-cyan-400/80 font-mono text-[11px]">Version : V 1.0</span>
+        </p>
+    </footer>
+
+    <script>
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwt85jQLQMq2OVW2h5DcGGhd7seTNOuFD2JIKtSOhxwFO4_mDNLJFFeSe1LWLOovKet/exec'; 
+
+        const JUDGE_SETTINGS = {
+            "กรรมการคนที่ 1": { password: "2468", role: "judge" },
+            "กรรมการคนที่ 2": { password: "5678", role: "judge" },
+            "กรรมการคนที่ 3": { password: "abcd", role: "judge" },
+            "คุณครู (Admin)": { password: "admin999", role: "admin" } 
+        };
+
+        const { createApp, ref, computed, onMounted } = Vue;
+        createApp({
+            setup() {
+                const currentTab = ref('student');
+                const isLoading = ref(false);
+                const isSubmitting = ref(false);
+                const currentUser = ref(null);
+                const userRole = ref(''); 
+                const judgeFilter = ref('ทั้งหมด');
+                const selectedArtwork = ref(null);
+                const currentScoreInput = ref(0);
+
+                const studentForm = ref({ level: '', name: '', image: null });
+                const loginForm = ref({ username: 'กรรมการคนที่ 1', password: '' });
+                const artworks = ref([]);
+
+                const fetchArtworks = async () => {
+                    if (!SCRIPT_URL) return;
+                    isLoading.value = true;
+                    try {
+                        const res = await fetch(SCRIPT_URL);
+                        const data = await res.json();
+                        artworks.value = Array.isArray(data) ? data : [];
+                    } catch (err) { console.error("Error fetching data:", err); }
+                    finally { isLoading.value = false; }
+                };
+
+                onMounted(() => {
+                    fetchArtworks();
+                    const savedUser = localStorage.getItem('cloud_user');
+                    const savedRole = localStorage.getItem('cloud_role');
+                    if (savedUser && savedRole) {
+                        currentUser.value = savedUser;
+                        userRole.value = savedRole;
+                    }
+                });
+
+                const handleImageUpload = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => { studentForm.value.image = event.target.result; };
+                        reader.readAsDataURL(file);
+                    }
+                };
+
+                const submitArtwork = async () => {
+                    isSubmitting.value = true;
+                    try {
+                        await fetch(SCRIPT_URL, {
+                            method: 'POST',
+                            mode: 'no-cors',
+                            body: JSON.stringify({ 
+                                action: 'submit_artwork', 
+                                level: studentForm.value.level, 
+                                name: studentForm.value.name, 
+                                image: studentForm.value.image 
+                            })
+                        });
+                        alert('🎉 ส่งผลงานเข้าประกวดสำเร็จและบันทึกลง Google Sheets เรียบร้อยแล้ว!');
+                        studentForm.value = { level: '', name: '', image: null };
+                        setTimeout(fetchArtworks, 1500);
+                    } catch (err) { alert('เกิดข้อผิดพลาดในการส่งข้อมูล'); }
+                    finally { isSubmitting.value = false; }
+                };
+
+                const login = () => {
+                    const account = JUDGE_SETTINGS[loginForm.value.username];
+                    if (account && account.password === loginForm.value.password) {
+                        currentUser.value = loginForm.value.username;
+                        userRole.value = account.role;
+                        localStorage.setItem('cloud_user', currentUser.value);
+                        localStorage.setItem('cloud_role', userRole.value);
+                        loginForm.value.password = '';
+                        currentTab.value = 'judge';
+                    } else {
+                        alert('❌ รหัสผ่านไม่ถูกต้องสำหรับชื่อผู้ใช้นี้');
+                    }
+                };
+
+                const logout = () => { 
+                    currentUser.value = null; 
+                    userRole.value = '';
+                    localStorage.removeItem('cloud_user'); 
+                    localStorage.removeItem('cloud_role');
+                    selectedArtwork.value = null; 
+                    currentTab.value = 'student';
+                };
+
+                const filteredArtworks = computed(() => {
+                    if (judgeFilter.value === 'ทั้งหมด') return artworks.value;
+                    return artworks.value.filter(a => a.level === judgeFilter.value);
+                });
+
+                const gradedCount = computed(() => {
+                    if (!currentUser.value) return 0;
+                    return filteredArtworks.value.filter(a => a.scores && a.scores[currentUser.value] !== undefined).length;
+                });
+
+                const selectArtwork = (art) => {
+                    selectedArtwork.value = art;
+                    currentScoreInput.value = (art.scores && art.scores[currentUser.value] !== undefined) ? art.scores[currentUser.value] : 0;
+                };
+
+                const saveScore = async () => {
+                    if (!selectedArtwork.value || !currentUser.value) return;
+                    isSubmitting.value = true;
+                    try {
+                        await fetch(SCRIPT_URL, {
+                            method: 'POST',
+                            mode: 'no-cors',
+                            body: JSON.stringify({ 
+                                action: 'submit_score', 
+                                artworkId: selectedArtwork.value.id, 
+                                judgeName: currentUser.value, 
+                                score: currentScoreInput.value 
+                            })
+                        });
+                        alert('💾 บันทึกคะแนนเข้าสู่ Google Sheets สำเร็จ');
+                        setTimeout(fetchArtworks, 1500);
+                    } catch (err) { alert('ไม่สามารถบันทึกคะแนนได้'); }
+                    finally { isSubmitting.value = false; selectedArtwork.value = null; }
+                };
+
+                const processedArtworks = computed(() => {
+                    if (!artworks.value) return [];
+                    return artworks.value.map(art => {
+                        const scoreValues = Object.values(art.scores || {});
+                        const avg = scoreValues.length > 0 ? (scoreValues.reduce((sum, v) => sum + v, 0) / 3) : 0;
+                        return { ...art, avgScore: avg };
+                    }).sort((a, b) => b.avgScore - a.avgScore);
+                });
+
+                const overallTop3 = computed(() => processedArtworks.value.filter(a => a.avgScore > 0).slice(0, 3));
+                const getTop3ByLevel = (level) => processedArtworks.value.filter(a => a.level === level && a.avgScore > 0).slice(0, 3);
+                
+                const tabClass = (tab) => `px-4 py-2 text-xs md:text-sm font-medium rounded-lg cursor-pointer transition-all ${currentTab.value === tab ? 'bg-cyan-500 text-slate-900 shadow-md shadow-cyan-500/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`;
+
+                return { currentTab, isLoading, isSubmitting, currentUser, userRole, judgeFilter, selectedArtwork, currentScoreInput, studentForm, loginForm, filteredArtworks, gradedCount, overallTop3, handleImageUpload, submitArtwork, login, logout, selectArtwork, saveScore, getTop3ByLevel, tabClass };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
