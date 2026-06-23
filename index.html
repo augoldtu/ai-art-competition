@@ -15,7 +15,6 @@
 
     <div id="app" v-cloak class="p-4 md:p-8 max-w-7xl mx-auto w-full flex-1">
         
-        <!-- HEADER WITH SCHOOL LOGO & NAME -->
         <header class="flex flex-col md:flex-row justify-between items-center border-b border-slate-700 pb-6 mb-8 gap-4">
             <div class="flex items-center gap-4">
                 <img src="ตราโรงเรียนหนองตะขบ.png" alt="ตราโรงเรียนหนองตะขบ.png" class="w-16 h-16 object-contain">
@@ -41,13 +40,11 @@
             </div>
         </header>
 
-        <!-- LOADING STATE -->
         <div v-if="isLoading" class="text-center py-12 text-cyan-400 animate-pulse">
             <span>⏳ กำลังซิงค์ข้อมูลกับ Google Sheets...</span>
         </div>
 
         <main v-else>
-            <!-- ================= TAB: STUDENT ================= -->
             <section v-if="currentTab === 'student'" class="max-w-xl mx-auto bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
                 <h2 class="text-xl font-semibold mb-6 text-cyan-400 flex items-center gap-2">🚀 ส่งผลงานประกวดภาพ AI</h2>
                 <form @submit.prevent="submitArtwork" class="space-y-5">
@@ -78,9 +75,7 @@
                 </form>
             </section>
 
-            <!-- ================= TAB: JUDGE & ADMIN ================= -->
             <section v-if="currentTab === 'judge'">
-                <!-- LOGIN FORM -->
                 <div v-if="!currentUser" class="max-w-md mx-auto bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
                     <h2 class="text-xl font-semibold mb-6 text-purple-400 text-center">🔒 เข้าสู่ระบบตรวจงาน / จัดการระบบ</h2>
                     <form @submit.prevent="login" class="space-y-4">
@@ -97,7 +92,6 @@
                     </form>
                 </div>
 
-                <!-- MAIN CONTROL AREA -->
                 <div v-else class="space-y-6">
                     <div class="bg-slate-800/40 p-4 rounded-xl border border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
                         <div class="flex gap-2">
@@ -109,7 +103,15 @@
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div v-for="art in filteredArtworks" :key="art.id" @click="selectArtwork(art)" :class="['p-3 bg-slate-800 rounded-xl border cursor-pointer flex flex-col justify-between hover:scale-[1.01] transition-all', selectedArtwork?.id === art.id ? 'border-purple-400 shadow-lg shadow-purple-500/10' : 'border-slate-700']">
-                                <img :src="art.image" class="aspect-video w-full object-cover rounded-lg mb-2 bg-slate-900">
+                                
+                                <div class="relative group">
+                                    <img :src="art.image" class="aspect-video w-full object-cover rounded-lg mb-2 bg-slate-900">
+                                    <a :href="art.image" :download="'ผลงาน_' + (art.name || 'ไม่มีชื่อ') + '.png'" @click.stop
+                                       class="absolute bottom-4 right-2 bg-slate-950/80 hover:bg-slate-900 text-white px-2 py-1 rounded-md text-[10px] flex items-center gap-1 transition-all border border-slate-700">
+                                        📥 ดาวน์โหลดด่วน
+                                    </a>
+                                </div>
+
                                 <div class="text-sm font-medium truncate text-slate-300 mb-1" v-if="userRole === 'admin'">👤 {{ art.name }}</div>
                                 <div class="flex justify-between items-center text-xs">
                                     <span class="bg-slate-700 px-2 py-0.5 rounded text-slate-300">{{ art.level }}</span>
@@ -126,11 +128,16 @@
                         </div>
 
                         <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 h-fit sticky top-6">
-                            <!-- MODE: JUDGE PANEL -->
                             <div v-if="userRole === 'judge'">
                                 <h3 class="text-md font-medium text-purple-400 mb-4 border-b border-slate-700 pb-2">📋 ลงคะแนน</h3>
                                 <div v-if="selectedArtwork" class="space-y-4">
                                     <img :src="selectedArtwork.image" class="w-full max-h-40 object-contain rounded-lg bg-slate-900">
+                                    
+                                    <a :href="selectedArtwork.image" :download="'ผลงาน_' + selectedArtwork.name + '_' + selectedArtwork.level + '.png'" 
+                                       class="inline-flex items-center justify-center gap-1.5 w-full bg-slate-700 hover:bg-slate-600 text-xs text-slate-200 py-2 rounded-lg transition-colors text-center font-medium">
+                                        📥 ดาวน์โหลดภาพผลงานนี้
+                                    </a>
+
                                     <div class="flex justify-between text-sm">
                                         <label class="text-slate-400">คะแนน (0-100):</label>
                                         <span class="font-bold text-amber-400">{{ currentScoreInput }} / 100</span>
@@ -143,11 +150,16 @@
                                 <div v-else class="text-center py-8 text-slate-500 text-xs">👈 เลือกรูปภาพด้านซ้ายเพื่อกรอกคะแนน</div>
                             </div>
 
-                            <!-- MODE: ADMIN PANEL -->
                             <div v-if="userRole === 'admin'">
                                 <h3 class="text-md font-medium text-amber-400 mb-4 border-b border-slate-700 pb-2">🛠️ แผงผู้ดูแลระบบ (Admin)</h3>
                                 <div v-if="selectedArtwork" class="space-y-3 text-xs">
                                     <img :src="selectedArtwork.image" class="w-full max-h-40 object-contain rounded-lg bg-slate-900 mb-2">
+                                    
+                                    <a :href="selectedArtwork.image" :download="'ผลงาน_' + selectedArtwork.name + '_' + selectedArtwork.level + '.png'" 
+                                       class="inline-flex items-center justify-center gap-1.5 w-full bg-slate-700 hover:bg-slate-600 text-xs text-slate-200 py-2 rounded-lg transition-colors text-center font-medium mb-2">
+                                        📥 ดาวน์โหลดภาพผลงานนี้
+                                    </a>
+
                                     <p class="text-slate-300 font-medium text-sm">👤 นักเรียน: {{ selectedArtwork.name }} ({{ selectedArtwork.level }})</p>
                                     <div class="bg-slate-900/60 p-3 rounded-lg mt-2 space-y-1.5">
                                         <p class="font-bold text-slate-400 border-b border-slate-700 pb-1 mb-1">ผลคะแนนแยกรายบุคคล:</p>
@@ -164,7 +176,6 @@
                 </div>
             </section>
 
-            <!-- ================= TAB: LEADERBOARD ================= -->
             <section v-if="currentTab === 'leaderboard' && currentUser" class="space-y-8">
                 <div class="bg-gradient-to-br from-purple-950/20 via-slate-800/50 to-cyan-950/20 p-6 rounded-2xl border border-slate-700 text-center">
                     <h2 class="text-xl font-bold mb-6 text-amber-400">🏆 3 อันดับสูงสุดรวมทุกระดับชั้น (ม.1 - ม.3)</h2>
@@ -199,7 +210,6 @@
         </main>
     </div>
 
-    <!-- ================= FOOTER: CREDITS ================= -->
     <footer class="w-full text-center py-6 border-t border-slate-800 mt-12 bg-slate-950/40">
         <p class="text-xs text-slate-500 tracking-wide">
             พัฒนาโดย <span class="text-slate-400 font-medium">ครูเนรมิต เหล็กคงสันเทียะ</span> 
